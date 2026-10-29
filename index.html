@@ -161,13 +161,20 @@ header.band{
   animation:pop .25s ease-out;
 }
 #qv .ans small{display:block;font-size:clamp(12px,.9vw,16px);letter-spacing:.25em;text-transform:uppercase;color:var(--bronze-l);font-weight:600;margin-bottom:6px}
+.pics{height:100%;max-height:64vh;display:flex;flex-direction:column;gap:2vh;min-height:0}
 .pic{
-  height:100%;max-height:62vh;border-radius:18px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  flex:1;min-height:0;position:relative;border-radius:18px;display:flex;align-items:center;justify-content:center;overflow:hidden;
   background:var(--sky);
 }
-.pic img{max-width:100%;max-height:100%;object-fit:contain;border-radius:14px}
+.pic img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border-radius:14px}
 .pic.empty{border:3px dashed var(--blue-l);flex-direction:column;gap:12px;color:var(--blue);text-align:center;padding:20px}
-.pic.empty svg{width:72px;height:72px;opacity:.55}
+.pic.empty svg{width:clamp(36px,5vh,72px);height:clamp(36px,5vh,72px);opacity:.55}
+.pic .tag{position:absolute;top:10px;left:10px;z-index:1;font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  padding:4px 10px;border-radius:20px;background:var(--blue);color:#fff}
+.pic.ans-pic{background:#f6ecec}
+.pic.ans-pic.empty{border-color:#c98b8e;color:var(--burg)}
+.pic.ans-pic .tag{background:var(--burg)}
+.pic.ans-pic{animation:pop .25s ease-out}
 .pic.empty b{font-size:18px}
 .pic.empty code{font-family:Consolas,monospace;font-size:15px;background:#fff;padding:3px 10px;border-radius:6px;color:var(--muted)}
 #timeup{
@@ -263,7 +270,7 @@ header.band{
       <div class="qtext" id="qText"></div>
       <div class="ans hidden" id="qAns"><small>Ответ</small><span id="qAnsText"></span></div>
     </div>
-    <div class="pic" id="qPic"></div>
+    <div class="pics"><div class="pic" id="picQ"></div><div class="pic ans-pic hidden" id="picA"></div></div>
   </div>
   <div class="qfoot">
     <button class="btn ghost" id="btnRestart">↻ Таймер заново</button>
@@ -313,8 +320,8 @@ header.band{
    КАРТИНКИ: положите файл в папку images рядом с index.html
    с именем  <номер темы>-<стоимость>  — например images/1-100.jpg,
    images/3-400.png. Подходят .jpg .jpeg .png .webp .gif.
-   Картинка, которая появится вместе с ответом: images/1-100-otvet.jpg
-   (если её нет — остаётся картинка вопроса).
+   Картинка к ответу (появляется второй рамкой под первой,
+   когда нажимаешь «Показать ответ»): images/1-100-otvet.jpg
    Можно и явно указать файл: img: "images/фото.jpg", aimg: "images/ответ.jpg".
    ===================================================================== */
 const GAME = {
@@ -485,19 +492,24 @@ function findImg(list){
 }
 function loadPic(q, t, i){
   const base = `images/${t+1}-${q.p}`;
-  pics = { q: null, a: null, hint: q.img || base + ".jpg" };
+  pics = { q: null, a: null, hint: q.img || base + ".jpg", ahint: q.aimg || base + "-otvet.jpg" };
   showPic();
   const mine = () => cur && cur.t === t && cur.i === i;
   findImg(q.img ? [q.img] : EXT.map(x => base + "." + x)).then(img => { if (mine()) { pics.q = img; showPic(); } });
   findImg(q.aimg ? [q.aimg] : EXT.map(x => base + "-otvet." + x)).then(img => { if (mine()) { pics.a = img; showPic(); } });
 }
 function showPic(){
-  const box = $("qPic"), answer = !$("qAns").classList.contains("hidden");
-  const img = (answer && pics.a) || pics.q;
-  if (img){ box.className = "pic"; box.innerHTML = ""; box.appendChild(img); return; }
-  box.className = "pic empty";
-  box.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></svg>
-    <b>Место для картинки</b><code>${esc(pics.hint)}</code>`;
+  const answer = !$("qAns").classList.contains("hidden");
+  fillPic($("picQ"), pics.q, pics.hint, "Вопрос", "");
+  fillPic($("picA"), pics.a, pics.ahint, "Ответ", " ans-pic");
+  $("picA").classList.toggle("hidden", !answer);
+}
+function fillPic(box, img, hint, tag, cls){
+  const label = `<span class="tag">${tag}</span>`;
+  if (img){ box.className = "pic" + cls; box.innerHTML = label; box.appendChild(img); return; }
+  box.className = "pic empty" + cls;
+  box.innerHTML = label + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></svg>
+    <b>Место для картинки</b><code>${esc(hint)}</code>`;
 }
 function toggleAnswer(){
   const a = $("qAns"), hid = a.classList.toggle("hidden");
