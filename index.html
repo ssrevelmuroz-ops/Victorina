@@ -313,7 +313,9 @@ header.band{
    КАРТИНКИ: положите файл в папку images рядом с index.html
    с именем  <номер темы>-<стоимость>  — например images/1-100.jpg,
    images/3-400.png. Подходят .jpg .jpeg .png .webp .gif.
-   Можно и явно указать файл в поле img: "images/моё-фото.jpg".
+   Картинка, которая появится вместе с ответом: images/1-100-otvet.jpg
+   (если её нет — остаётся картинка вопроса).
+   Можно и явно указать файл: img: "images/фото.jpg", aimg: "images/ответ.jpg".
    ===================================================================== */
 const GAME = {
   title: "Иностранцы в истории России",
@@ -466,27 +468,41 @@ function openQ(t, i){
   $("qv").classList.remove("hidden");
   startTimer();
 }
+// Картинка к вопросу: images/1-100.jpg, картинка к ответу: images/1-100-otvet.jpg
+let pics = { q: null, a: null };
+function findImg(list){
+  return new Promise(res => {
+    let n = 0;
+    const next = () => {
+      if (n >= list.length) return res(null);
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = next;
+      img.src = list[n++];
+    };
+    next();
+  });
+}
 function loadPic(q, t, i){
-  const box = $("qPic"), base = `images/${t+1}-${q.p}`;
-  const list = q.img ? [q.img] : EXT.map(x => base + "." + x);
-  const empty = () => {
-    box.className = "pic empty";
-    box.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></svg>
-      <b>Место для картинки</b><code>${esc(q.img || base + ".jpg")}</code>`;
-  };
-  let n = 0;
-  const tryNext = () => {
-    if (n >= list.length) return empty();
-    const img = new Image(), src = list[n++];
-    img.onload = () => { if (cur && cur.t === t && cur.i === i) { box.className = "pic"; box.innerHTML = ""; box.appendChild(img); } };
-    img.onerror = tryNext;
-    img.src = src;
-  };
-  empty(); tryNext();
+  const base = `images/${t+1}-${q.p}`;
+  pics = { q: null, a: null, hint: q.img || base + ".jpg" };
+  showPic();
+  const mine = () => cur && cur.t === t && cur.i === i;
+  findImg(q.img ? [q.img] : EXT.map(x => base + "." + x)).then(img => { if (mine()) { pics.q = img; showPic(); } });
+  findImg(q.aimg ? [q.aimg] : EXT.map(x => base + "-otvet." + x)).then(img => { if (mine()) { pics.a = img; showPic(); } });
+}
+function showPic(){
+  const box = $("qPic"), answer = !$("qAns").classList.contains("hidden");
+  const img = (answer && pics.a) || pics.q;
+  if (img){ box.className = "pic"; box.innerHTML = ""; box.appendChild(img); return; }
+  box.className = "pic empty";
+  box.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></svg>
+    <b>Место для картинки</b><code>${esc(pics.hint)}</code>`;
 }
 function toggleAnswer(){
   const a = $("qAns"), hid = a.classList.toggle("hidden");
   $("btnShow").textContent = hid ? "Показать ответ" : "Скрыть ответ";
+  showPic();
 }
 $("btnShow").onclick = toggleAnswer;
 $("btnRestart").onclick = startTimer;
